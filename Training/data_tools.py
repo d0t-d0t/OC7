@@ -231,28 +231,60 @@ def verify_structure(target_root):
         else:
             print(f"  {split}: dossier manquant")
 
+def get_prediction(model,image_raw):
+    """RETURN a dic with:
+        image_resized : the image at size model was fed
+        array_image_resized : same but as array
+        mask :  the predicted mask
+        mask_array :  same but as array
+        mask_resized :  this array resized at image raw size
+
+    """
+    result_dic = {}
+    # if training_target_size is None:
+    input_shape = model.input_shape
+    training_target_size = (input_shape[1],input_shape[2])
+    
+    # image_resized = image.load_img(image_test_path,target_size=training_target_size)
+    result_dic['image_resized'] = image.smart_resize(image_raw,
+                                       size=training_target_size)
+
+    
+    result_dic['array_image_resized'] = image.img_to_array(result_dic['image_resized'])/255.
+
+
+    # Add batch dimension to make it (1, 256, 256, 3)
+    input_batch = np.expand_dims(result_dic['array_image_resized'], axis=0)
+
+    mask = model.predict(input_batch)
+    mask = mask[0]  
+    # Reshape the mask from (65536, 8) to (256, 256, 8)
+    result_dic['mask'] = mask.reshape(training_target_size[0], training_target_size[1], 8)
+
+    result_dic['mask_array'] = get_mask_as_chart(result_dic['mask'])
+    result_dic['mask_image'] = image.array_to_img(result_dic['mask_array'])
+
+    # Resize mask to raw image dimensions for overlay
+    array_image_raw = image.img_to_array(image_raw)/255.
+    raw_height, raw_width = array_image_raw.shape[0], array_image_raw.shape[1]
+    result_dic['mask_resized'] = image.smart_resize(result_dic['mask_array'], (raw_height, raw_width), 
+                                    interpolation='nearest')
+    
+    return result_dic
+
 
 IMAGE_TEST_PATH = 'Datas/reorganized_cityscape_data/test/images/berlin_000005_000019_leftImg8bit.png'
 
 def visualize_model_prediction(model,
                                image_test_path = IMAGE_TEST_PATH,
-                               training_target_size = (256,256)
+                               training_target_size = None,
                                ):
+    
     image_raw = image.load_img(image_test_path)
-    image_resized = image.load_img(image_test_path,target_size=training_target_size)
-
     array_image_raw = image.img_to_array(image_raw)/255.
-    array_image_resized = image.img_to_array(image_resized)/255.
 
-    # Add batch dimension to make it (1, 256, 256, 3)
-    input_batch = np.expand_dims(array_image_resized, axis=0)
+    prediction_dic = get_prediction(model,image_raw)
 
-    mask = model.predict(input_batch)
-    mask = mask[0]  
-    # Reshape the mask from (65536, 8) to (256, 256, 8)
-    mask = mask.reshape(training_target_size[0], training_target_size[1], 8)
-    print(f'mask shape is {mask.shape}')
-    mask_array = get_mask_as_chart(mask)
 
     fig = plt.figure(figsize=(15, 15))
     # ax = fig.add_subplot(1, 3, 1)
@@ -261,20 +293,16 @@ def visualize_model_prediction(model,
 
     ax1 = fig.add_subplot(1, 3, 2)
     ax1.set_title('Image')
-    ax1.imshow(array_image_resized)
+    ax1.imshow(prediction_dic['array_image_resized'])
 
     ax2 = fig.add_subplot(1, 3, 3)
     ax2.set_title('Mask')
-    ax2.imshow(mask_array)
+    ax2.imshow(prediction_dic['mask_array'])
 
-    # Resize mask to raw image dimensions for overlay
-    raw_height, raw_width = array_image_raw.shape[0], array_image_raw.shape[1]
-    mask_resized = tf.image.resize(mask_array, [raw_height, raw_width], 
-                              method=tf.image.ResizeMethod.NEAREST_NEIGHBOR).numpy().astype(np.uint8)
     
-    # Create overlay (you can adjust alpha for transparency)
+    # Create overlayed image 
     alpha = 0.6
-    overlay = (array_image_raw * (1 - alpha) + mask_resized/255.0 * alpha)
+    overlay = (array_image_raw * (1 - alpha) + prediction_dic['mask_resized']/255.0 * alpha)
 
     ax3 = fig.add_subplot(1, 3, 1)
     ax3.set_title('Overlay (Mask on Original)')

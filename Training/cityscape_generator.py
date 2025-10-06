@@ -6,7 +6,7 @@ from data_tools import get_image_n_mask, get_split_dic
 class CityscapeDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, image_list, mask_dic, image_dir, masks_dir, batch_size=32, dim=(256,256), n_channels=3,
-                 n_classes=8, shuffle=True):
+                 n_classes=8, shuffle=True,augmentation_func = None):
         'Initialization'
         self.dim = dim
         self.batch_size = batch_size
@@ -17,6 +17,7 @@ class CityscapeDataGenerator(keras.utils.Sequence):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.shuffle = shuffle
+        self.augmentation = augmentation_func
         self.on_epoch_end()
 
     def __len__(self):
@@ -50,8 +51,21 @@ class CityscapeDataGenerator(keras.utils.Sequence):
 
         # Generate data
         for i, ID in enumerate(image_list_temp):
-            temp_x,temp_y = get_image_n_mask(i, self.image_dir, self.mask_dir, image_list_temp, self.mask_dic,
-                                             img_height= self.dim[0],img_width = self.dim[1],flatten_mask=True)
+            temp_x,temp_y_unflat = get_image_n_mask(i, self.image_dir, self.mask_dir, image_list_temp, self.mask_dic,
+                                             img_height= self.dim[0],img_width = self.dim[1],flatten_mask=False)
+            
+
+             
+            # Apply data augmentation if provided
+            if self.augmentation:
+                # Apply same augmentation to both image and mask
+                augmented = self.augmentation(image=temp_x, mask=temp_y_unflat)
+                temp_x = augmented['image']
+                temp_y_unflat = augmented['mask']
+
+            # Flatten the mask after augmentation
+            temp_y = np.resize(temp_y_unflat, (temp_x.shape[0]*temp_x.shape[1], self.n_classes))
+            
             # Store sample
             X[i,] = temp_x
 

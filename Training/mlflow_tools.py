@@ -105,7 +105,8 @@ def cityscape_experiment(model_func = Unet,
 
     process_time = time.time() - start_time
 
-    prediction_test_fig = visualize_model_prediction(model)
+    prediction_test_fig = visualize_model_prediction(model,
+                                                     training_target_size=(model_params['img_height'],model_params['img_width']))
 
     # Start an MLflow run
     with mlflow.start_run() as run:
