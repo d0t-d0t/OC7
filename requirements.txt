@@ -1,0 +1,6 @@
+#for app and api deploy only
+fastapi
+gunicorn
+uvicorn
+tensorflow-cpu # # tensorflow # tensorflow-cpu # tensorflow=1.14
+keras
