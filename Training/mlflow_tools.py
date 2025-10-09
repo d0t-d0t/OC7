@@ -2,9 +2,11 @@ import mlflow
 import time
 import subprocess
 from cityscape_generator import get_split_generator
-from data_tools import visualize_model_prediction
+from custom_metrics import dice_coeff
+from data_tools import visualize_multi_model_predictions
 from model_unet import Unet
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
+from keras.metrics import MeanIoU
 
 def start_local_experiment( host='127.0.0.1',
                             port='8080',
@@ -30,14 +32,14 @@ def cityscape_experiment(model_func = Unet,
                              'nclasses'   : 8
                          },
                          gen_params = {'batch_size':4},
-                        metrics = [
-                                    # dice_coeff,
-                                    'accuracy'],
+                        metrics = [MeanIoU(8),
+                                   dice_coeff,
+                                   'accuracy'],
                         train_step_per_epoch = 93, #sample/batch_size
                         val_step_per_epoch = 16,
                         num_epochs = 8,
                         training_description = 'cityscape segmentation experiments',
-                        model_name = 'Unet',
+                        
                         
                         **kwargs
 
@@ -45,7 +47,9 @@ def cityscape_experiment(model_func = Unet,
     start_time = time.time()
 
     model = model_func(**model_params)
+    model_name = model.name
 
+    gen_params['dim']=  (model_params.get('img_height',256),model_params.get('img_width',256))
     generator_dic = get_split_generator(params=gen_params)
     train_generator = generator_dic['train']
 
@@ -87,44 +91,44 @@ def cityscape_experiment(model_func = Unet,
                         verbose=1)
     callbacks.append(es)
     # vis = visualize()
-
-
-    mlflow.tensorflow.autolog()
-    history =  model.fit( #fit_generator deprecated
-                train_generator,
-                steps_per_epoch=train_step_per_epoch,
-                epochs=num_epochs,
-                verbose=1,
-                validation_data=val_generator,
-                validation_steps=val_step_per_epoch,
-                # use_multiprocessing=True,
-                # workers=16,
-                callbacks=callbacks,
-                # max_queue_size=32,
-                )
-
-    process_time = time.time() - start_time
-
-    prediction_test_fig = visualize_model_prediction(model,
-                                                     training_target_size=(model_params['img_height'],model_params['img_width']))
-
-    # Start an MLflow run
     with mlflow.start_run() as run:
+
+        mlflow.tensorflow.autolog()
+        history =  model.fit( #fit_generator deprecated
+                    train_generator,
+                    steps_per_epoch=train_step_per_epoch,
+                    epochs=num_epochs,
+                    verbose=1,
+                    validation_data=val_generator,
+                    validation_steps=val_step_per_epoch,
+                    # use_multiprocessing=True,
+                    # workers=16,
+                    callbacks=callbacks,
+                    # max_queue_size=32,
+                    )
+
+        process_time = time.time() - start_time
+
+        prediction_test_fig = visualize_multi_model_predictions(model,
+                                                        )
+
+        # Start an MLflow run
+    
         mlflow.log_figure(prediction_test_fig, "prediction_test.png")
 
-        signature = None
+        # signature = None
         # Infer the model signature
         # if sign_model:
         #     signature = infer_signature(X_train, model.predict(X_train), model_params )
 
 
-        model_info  = mlflow.keras.log_model(
-                                    model=model,        
-                                    name=model_name,
-                                    signature=signature,
-                                    input_example=None,
-                                    registered_model_name=f"{model_name}",
-                                    )
+        # model_info  = mlflow.keras.log_model(
+        #                             model=model,        
+        #                             name=model_name,
+        #                             signature=signature,
+        #                             input_example=None,
+        #                             registered_model_name=f"{model_name}",
+        #                             )
 
         
         # hash_id = None
@@ -151,11 +155,11 @@ def cityscape_experiment(model_func = Unet,
                             
                             })
 
-        # Set a tag that we can use to remind ourselves what this model was for
-        mlflow.set_logged_model_tags(
-            model_info.model_id, {"Training Info": training_description,
+        # # Set a tag that we can use to remind ourselves what this model was for
+        # mlflow.set_logged_model_tags(
+        #     model_info.model_id, {"Training Info": training_description,
                                   
-                                  }
-        )
+        #                           }
+        # )
 
         # mlflow.keras.load_model(model_info.model_uri)

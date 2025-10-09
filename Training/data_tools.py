@@ -246,8 +246,10 @@ def get_prediction(model,image_raw):
     training_target_size = (input_shape[1],input_shape[2])
     
     # image_resized = image.load_img(image_test_path,target_size=training_target_size)
-    result_dic['image_resized'] = image.smart_resize(image_raw,
-                                       size=training_target_size)
+    result_dic['image_resized'] = tf.image.resize(
+        image_raw, training_target_size, method='bilinear'
+    )
+    #image.smart_resize(image_raw, size=training_target_size)
 
     
     result_dic['array_image_resized'] = image.img_to_array(result_dic['image_resized'])/255.
@@ -267,13 +269,17 @@ def get_prediction(model,image_raw):
     # Resize mask to raw image dimensions for overlay
     array_image_raw = image.img_to_array(image_raw)/255.
     raw_height, raw_width = array_image_raw.shape[0], array_image_raw.shape[1]
-    result_dic['mask_resized'] = image.smart_resize(result_dic['mask_array'], (raw_height, raw_width), 
-                                    interpolation='nearest')
+    result_dic['mask_resized'] =  tf.image.resize(
+        result_dic['mask_array'], (raw_height, raw_width), method='nearest'
+    )
+    
+    # image.smart_resize(result_dic['mask_array'], (raw_height, raw_width), 
+    #                                 interpolation='nearest')
     
     return result_dic
 
 
-IMAGE_TEST_PATH = 'Datas/reorganized_cityscape_data/test/images/berlin_000005_000019_leftImg8bit.png'
+IMAGE_TEST_PATH = 'Datas/reorganized_cityscape_data/test/images'
 
 def visualize_model_prediction(model,
                                image_test_path = IMAGE_TEST_PATH,
@@ -311,3 +317,90 @@ def visualize_model_prediction(model,
 
     return fig
 
+import random
+
+
+def visualize_multi_model_predictions(model,
+                               directory_path=IMAGE_TEST_PATH,
+                               n=5,
+                               random_seed=42,
+                               ):
+    """
+    Visualize model predictions for n random images from a directory.
+    
+    Args:
+        model: The model to use for predictions
+        directory_path: Path to directory containing images
+        n: Number of random images to select (default=3)
+        random_seed: Random seed for reproducibility (default=42)
+    
+    Returns:
+        fig: matplotlib figure with predictions
+    """
+    
+    # Set random seed for reproducibility
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    
+    # Get all image files from directory
+    all_images = []
+    for file in os.listdir(directory_path):
+        if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+            all_images.append(os.path.join(directory_path, file))
+    
+    if not all_images:
+        raise ValueError(f"No images found in directory: {directory_path}")
+    
+    # Randomly select n images
+    if len(all_images) < n:
+        print(f"Warning: Only {len(all_images)} images found, using all available")
+        selected_images = all_images
+    else:
+        selected_images = random.sample(all_images, n)
+    
+    # Create figure with appropriate size
+    fig = plt.figure(figsize=(15, 5 * n))
+    
+    for i, image_path in enumerate(selected_images):
+        try:
+            # Load and process image
+            image_raw = image.load_img(image_path)
+            array_image_raw = image.img_to_array(image_raw) / 255.0
+            
+            # Get prediction
+            prediction_dic = get_prediction(model, image_raw)
+            
+            # Create overlay
+            alpha = 0.6
+            overlay = (array_image_raw * (1 - alpha) + 
+                      prediction_dic['mask_resized'] / 255.0 * alpha)
+            
+            # Plot 1: Overlay
+            ax1 = fig.add_subplot(n, 3, i * 3 + 1)
+            ax1.set_title(f'Overlay - Image {i+1}\n{os.path.basename(image_path)}')
+            ax1.imshow(overlay)
+            ax1.axis('off')
+            
+            # Plot 2: Resized image
+            ax2 = fig.add_subplot(n, 3, i * 3 + 2)
+            ax2.set_title(f'Resized Input - Image {i+1}')
+            ax2.imshow(prediction_dic['array_image_resized'])
+            ax2.axis('off')
+            
+            # Plot 3: Mask
+            ax3 = fig.add_subplot(n, 3, i * 3 + 3)
+            ax3.set_title(f'Prediction Mask - Image {i+1}')
+            ax3.imshow(prediction_dic['mask_array'])
+            ax3.axis('off')
+            
+        except Exception as e:
+            print(f"Error processing image {image_path}: {str(e)}")
+            # Create empty subplots with error message
+            ax_err = fig.add_subplot(n, 3, i * 3 + 1)
+            ax_err.set_title(f'Error - Image {i+1}')
+            ax_err.text(0.5, 0.5, f'Error loading image:\n{str(e)}', 
+                       ha='center', va='center', transform=ax_err.transAxes)
+            ax_err.axis('off')
+    
+    plt.tight_layout()
+    return fig
