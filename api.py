@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 app = FastAPI()
 
-
+latest_model = None
 try:
     # model_path = r'.\Deployment\Models\best_model.pkl'
     model_path = os.path.join('.', 'Training', 'models-dr', 'model.keras')
