@@ -4,3 +4,6 @@ gunicorn
 uvicorn
 tensorflow-cpu # # tensorflow # tensorflow-cpu # tensorflow=1.14
 keras
+streamlit
+
+python-multipart
