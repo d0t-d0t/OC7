@@ -12,7 +12,7 @@ class Test_Global(unittest.TestCase):
     #     self.assertIsNotNone(api.latest_model)
 
 
-    def test_read_root():
+    def test_read_root(self):
         """Test the root endpoint returns expected response"""
         response = client.get("/")
         assert response.status_code == 200
