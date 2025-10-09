@@ -7,3 +7,4 @@ keras
 streamlit
 
 python-multipart
+matplotlib
