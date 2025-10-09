@@ -32,7 +32,7 @@ try:
 
 except Exception as e:
     print(f"Error loading model: {e}")
-    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load the model")
+    # raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load the model")
 
 
 @app.get("/")
