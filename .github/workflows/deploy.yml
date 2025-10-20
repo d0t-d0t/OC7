@@ -61,17 +61,17 @@ jobs:
 
           # Clone repo if it doesn't exist, otherwise update
           # Check if we need to clone or update
-          if [ ! -d "$SERVICE_NAME/.git" ]; then
+          if [ ! -d "OC7/.git" ]; then
             echo "Cloning repository for the first time..."
             # Remove directory if it exists but isn't a git repo
-            if [ -d "$SERVICE_NAME" ]; then
-              rm -rf $SERVICE_NAME
+            if [ -d "OC7" ]; then
+              rm -rf OC7
             fi
-            git clone https://github.com/d0td0t/OC7.git $SERVICE_NAME
-            cd $SERVICE_NAME
+            git clone https://github.com/d0td0t/OC7.git OC7
+            cd OC7
           else
             echo "Updating existing repository..."
-            cd $SERVICE_NAME
+            cd OC7
             git fetch origin
             git reset --hard origin/main
           fi
