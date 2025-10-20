@@ -45,7 +45,7 @@ jobs:
     
     steps:
     - name: Update and restart on EC2
-      uses: appleboy/ssh-action@v0.1.7
+      uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_INSTANCE_IP }}
         username: ubuntu
