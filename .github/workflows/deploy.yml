@@ -51,28 +51,106 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          cd /home/ubuntu/$SERVICE_NAME
-          
-          # Stop existing services
-          sudo systemctl stop ml-api streamlit-app || true
-          
-          # Simple git update - this won't affect model files since they're not in repo
-          echo "Updating repository..."
-          git fetch origin
-          git reset --hard origin/main
+          cd /home/ubuntu/
           
 
+
+          # Install nginx, git and venv
+          sudo apt update
+          sudo apt install -y nginx git python3-venv python3-pip
+
+          #clone git if it doesnt exist
+          if [ ! -d "$SERVICE_NAME" ]; then
+            echo "Cloning repository for the first time..."
+            git clone https://github.com/d0t-d0t/OC7.git $SERVICE_NAME
+            cd $SERVICE_NAME
+          else
+            echo "Updating existing repository..."
+            cd $SERVICE_NAME
+            git fetch origin
+            git reset --hard origin/main
+          fi
+
+          # Stop existing services
+          sudo systemctl stop ml-api streamlit-app || true
+
+          # Create virtual environment if it doesn't exist
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
           source venv/bin/activate
+          
           
           # Install/update dependencies
           pip install --upgrade pip
           pip install -r requirements.txt
           
-          # Restart services (assume they exist)
-          sudo systemctl restart ml-api streamlit-app nginx
+          # create or replace /etc/systemd/system/streamlit-app.service with repo /Deployment/streamlit-app.service
+          if [ -f "Deployment/streamlit-app.service" ]; then
+            sudo cp Deployment/streamlit-app.service /etc/systemd/system/
+          fi
+
+          # create or replace/etc/systemd/system/ml-api.service with repo /Deployment/ml-api.service
+          if [ -f "Deployment/ml-api.service" ]; then
+            sudo cp Deployment/ml-api.service /etc/systemd/system/
+          fi
+
+          # create or replace /etc/nginx/sites-available/ml-app with repo /Deployment/ml-app
+          if [ -f "Deployment/ml-app" ]; then
+            sudo cp Deployment/ml-app /etc/nginx/sites-available/
+            # Enable site if not already enabled
+            if [ ! -f "/etc/nginx/sites-enabled/ml-app" ]; then
+              sudo ln -s /etc/nginx/sites-available/ml-app /etc/nginx/sites-enabled/
+            fi
+            # Remove default nginx site
+            sudo rm -f /etc/nginx/sites-enabled/default
+          fi
+
+          # Test nginx configuration
+          sudo nginx -t
           
-          # Health check
+          # Reload systemd and enable services
+          sudo systemctl daemon-reload
+          sudo systemctl enable ml-api streamlit-app
+
+          # copy model
+
+          # If services don't exist yet, start them. Otherwise restart.
+          if ! systemctl is-active --quiet ml-api; then
+            sudo systemctl start ml-api
+          else
+            sudo systemctl restart ml-api
+          fi
+          
+          if ! systemctl is-active --quiet streamlit-app; then
+            sudo systemctl start streamlit-app
+          else
+            sudo systemctl restart streamlit-app
+          fi
+
+          # Restart nginx
+          sudo systemctl restart nginx
+
+          # Health checks 
           echo "Performing health checks..."
           sleep 10
-          curl -f http://localhost:8501 || echo "Streamlit health check failed"
-          curl -f http://localhost:8000/docs || echo "API health check failed"
+          
+          # Check Streamlit
+          if curl -f http://localhost:8501; then
+            echo "Streamlit health check passed"
+          else
+            echo "Streamlit health check failed"
+          fi
+          
+          # Check FastAPI
+          if curl -f http://localhost:8000/health; then
+            echo "API health check passed"
+          else
+            echo "API health check failed"
+          fi
+          
+          # Final status check
+          echo "Service status:"
+          sudo systemctl status ml-api --no-pager -l
+          sudo systemctl status streamlit-app --no-pager -l
+          sudo systemctl status nginx --no-pager -l
