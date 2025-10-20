@@ -59,14 +59,17 @@ jobs:
           sudo apt update
           sudo apt install -y nginx git python3-venv python3-pip
 
-          #clone git if it doesnt exist
+          # Clone repo if it doesn't exist, otherwise update
           if [ ! -d "$SERVICE_NAME" ]; then
             echo "Cloning repository for the first time..."
-            git clone https://github.com/d0t-d0t/OC7.git $SERVICE_NAME
-            cd $SERVICE_NAME
-          else
+            git clone https://github.com/your-username/your-repo.git $SERVICE_NAME
+          fi
+          
+          cd $SERVICE_NAME
+          
+          # Update if repository already existed
+          if [ -d ".git" ]; then
             echo "Updating existing repository..."
-            cd $SERVICE_NAME
             git fetch origin
             git reset --hard origin/main
           fi
@@ -83,27 +86,49 @@ jobs:
           
           # Install/update dependencies
           pip install --upgrade pip
-          pip install -r requirements.txt
+
+          # Install/update dependencies - make sure we're in the right directory
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
           
-          # create or replace /etc/systemd/system/streamlit-app.service with repo /Deployment/streamlit-app.service
+          pip install --upgrade pip
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          else
+            echo "WARNING: requirements.txt not found at $(pwd)/requirements.txt"
+          fi
+          
+           # Deploy systemd service files - adjust path if needed
           if [ -f "Deployment/streamlit-app.service" ]; then
             sudo cp Deployment/streamlit-app.service /etc/systemd/system/
+            echo "Deployed streamlit-app.service"
+          elif [ -f "streamlit-app.service" ]; then
+            sudo cp streamlit-app.service /etc/systemd/system/
+            echo "Deployed streamlit-app.service from root"
+          else
+            echo "WARNING: streamlit-app.service not found"
           fi
-
-          # create or replace/etc/systemd/system/ml-api.service with repo /Deployment/ml-api.service
+          
           if [ -f "Deployment/ml-api.service" ]; then
             sudo cp Deployment/ml-api.service /etc/systemd/system/
+            echo "Deployed ml-api.service"
+          elif [ -f "ml-api.service" ]; then
+            sudo cp ml-api.service /etc/systemd/system/
+            echo "Deployed ml-api.service from root"
+          else
+            echo "WARNING: ml-api.service not found"
           fi
-
-          # create or replace /etc/nginx/sites-available/ml-app with repo /Deployment/ml-app
+          
+          # Deploy nginx configuration
           if [ -f "Deployment/ml-app" ]; then
             sudo cp Deployment/ml-app /etc/nginx/sites-available/
-            # Enable site if not already enabled
-            if [ ! -f "/etc/nginx/sites-enabled/ml-app" ]; then
-              sudo ln -s /etc/nginx/sites-available/ml-app /etc/nginx/sites-enabled/
-            fi
-            # Remove default nginx site
-            sudo rm -f /etc/nginx/sites-enabled/default
+            echo "Deployed nginx config"
+          elif [ -f "ml-app" ]; then
+            sudo cp ml-app /etc/nginx/sites-available/
+            echo "Deployed nginx config from root"
+          else
+            echo "WARNING: nginx config not found"
           fi
 
           # Test nginx configuration
