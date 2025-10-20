@@ -62,7 +62,7 @@ jobs:
           # Clone repo if it doesn't exist, otherwise update
           if [ ! -d "$SERVICE_NAME" ]; then
             echo "Cloning repository for the first time..."
-            git clone https://github.com/your-username/your-repo.git $SERVICE_NAME
+            git clone https://github.com/d0td0t/OC7.git $SERVICE_NAME
           fi
           
           cd $SERVICE_NAME
