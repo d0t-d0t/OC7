@@ -60,19 +60,22 @@ jobs:
           sudo apt install -y nginx git python3-venv python3-pip
 
           # Clone repo if it doesn't exist, otherwise update
-          if [ ! -d "$SERVICE_NAME" ]; then
+          # Check if we need to clone or update
+          if [ ! -d "$SERVICE_NAME/.git" ]; then
             echo "Cloning repository for the first time..."
+            # Remove directory if it exists but isn't a git repo
+            if [ -d "$SERVICE_NAME" ]; then
+              rm -rf $SERVICE_NAME
+            fi
             git clone https://github.com/d0td0t/OC7.git $SERVICE_NAME
-          fi
-          
-          cd $SERVICE_NAME
-          
-          # Update if repository already existed
-          if [ -d ".git" ]; then
+            cd $SERVICE_NAME
+          else
             echo "Updating existing repository..."
+            cd $SERVICE_NAME
             git fetch origin
             git reset --hard origin/main
           fi
+          
 
           # Stop existing services
           sudo systemctl stop ml-api streamlit-app || true
@@ -82,7 +85,6 @@ jobs:
             python3 -m venv venv
           fi
           source venv/bin/activate
-          
           
           # Install/update dependencies
           pip install --upgrade pip
