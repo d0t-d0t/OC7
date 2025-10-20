@@ -1,0 +1,13 @@
+[Unit]
+Description=ML API Service
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/OC7
+Environment=PATH=/home/ubuntu/OC7/venv/bin
+ExecStart=/home/ubuntu/OC7/venv/bin/uvicorn api:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
