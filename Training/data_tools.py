@@ -5,6 +5,7 @@ import os
 import shutil
 from pathlib import Path
 import tensorflow as tf
+# from PIL import Image
 
 
 
@@ -231,7 +232,45 @@ def verify_structure(target_root):
         else:
             print(f"  {split}: dossier manquant")
 
-def get_prediction(model,image_raw):
+
+
+def get_prediction(model, image_raw):
+    """RETURN a dic with:
+        image_resized : the image at size model was fed
+        array_image_resized : same but as array
+        mask :  the predicted mask
+        mask_array :  same but as array
+        mask_resized :  this array resized at image raw size
+    """
+    result_dic = {}
+    input_shape = model.input_shape
+    training_target_size = (input_shape[1], input_shape[2])
+    
+    # FIX: Replace smart_resize with resize (no cropping)
+    result_dic['image_resized'] = image.array_to_img(
+        tf.image.resize(image.img_to_array(image_raw), training_target_size).numpy()
+    )
+    
+    # EVERYTHING ELSE STAYS EXACTLY THE SAME
+    result_dic['array_image_resized'] = image.img_to_array(result_dic['image_resized'])/255.
+
+    input_batch = np.expand_dims(result_dic['array_image_resized'], axis=0)
+    mask = model.predict(input_batch)
+    mask = mask[0]  
+    result_dic['mask'] = mask.reshape(training_target_size[0], training_target_size[1], 8)
+    result_dic['mask_array'] = get_mask_as_chart(result_dic['mask'])
+    result_dic['mask_image'] = image.array_to_img(result_dic['mask_array'])
+
+    # FIX: Also for mask resize
+    array_image_raw = image.img_to_array(image_raw)/255.
+    raw_height, raw_width = array_image_raw.shape[0], array_image_raw.shape[1]
+    result_dic['mask_resized'] = tf.image.resize(result_dic['mask_array'], (raw_height, raw_width), method='nearest').numpy()
+    
+    
+    return result_dic
+
+
+def old_get_prediction(model,image_raw):
     """RETURN a dic with:
         image_resized : the image at size model was fed
         array_image_resized : same but as array
@@ -246,10 +285,8 @@ def get_prediction(model,image_raw):
     training_target_size = (input_shape[1],input_shape[2])
     
     # image_resized = image.load_img(image_test_path,target_size=training_target_size)
-    result_dic['image_resized'] = tf.image.resize(
-        image_raw, training_target_size, method='bilinear'
-    )
-    #image.smart_resize(image_raw, size=training_target_size)
+    result_dic['image_resized'] = image_raw.resize(training_target_size, Image.BILINEAR)
+    image.resize(image_raw, size=training_target_size)
 
     
     result_dic['array_image_resized'] = image.img_to_array(result_dic['image_resized'])/255.
@@ -269,8 +306,8 @@ def get_prediction(model,image_raw):
     # Resize mask to raw image dimensions for overlay
     array_image_raw = image.img_to_array(image_raw)/255.
     raw_height, raw_width = array_image_raw.shape[0], array_image_raw.shape[1]
-    result_dic['mask_resized'] =  tf.image.resize(
-        result_dic['mask_array'], (raw_height, raw_width), method='nearest'
+    result_dic['mask_resized'] =   result_dic['mask_image'].resize(
+        (raw_width, raw_height), Image.NEAREST
     )
     
     # image.smart_resize(result_dic['mask_array'], (raw_height, raw_width), 

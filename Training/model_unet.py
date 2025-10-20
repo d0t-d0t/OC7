@@ -26,7 +26,8 @@ def deconv_block(tensor, residual, nfilters, size=3, padding='same', strides=(2,
 
 def Unet(img_height, img_width, nclasses=3, filters=64):
 # down
-    input_layer = Input(shape=(img_height, img_width, 3), name='image_input')
+    input_layer = Input(shape=(img_height, img_width, 3), 
+                        name='image_input')
     conv1 = conv_block(input_layer, nfilters=filters)
     conv1_out = MaxPooling2D(pool_size=(2, 2))(conv1)
     conv2 = conv_block(conv1_out, nfilters=filters*2)
@@ -48,7 +49,9 @@ def Unet(img_height, img_width, nclasses=3, filters=64):
 # output
     output_layer = Conv2D(filters=nclasses, kernel_size=(1, 1))(deconv9)
     output_layer = BatchNormalization()(output_layer)
-    output_layer = Reshape((img_height*img_width, nclasses), input_shape=(img_height, img_width, nclasses))(output_layer)
+    output_layer = Reshape((img_height*img_width, nclasses), 
+                            input_shape=(img_height, img_width, nclasses)
+                            )(output_layer)
     output_layer = Activation('softmax')(output_layer)
     
     model = Model(inputs=input_layer, outputs=output_layer, name='Unet')
@@ -76,7 +79,7 @@ def VGG16_Unet(img_height, img_width, nclasses=3):
     bottom = vgg16.get_layer('block5_conv3').output  # 512 filters
     bottom = Dropout(0.5)(bottom)
     
-    # Decoder (ascending part) - Trainable
+    # Acending part - Trainable
     # Up sampling block 1
     deconv6 = deconv_block(bottom, residual=skip4, nfilters=512)
     deconv6 = Dropout(0.5)(deconv6)

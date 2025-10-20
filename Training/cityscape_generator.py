@@ -5,8 +5,14 @@ from data_tools import get_image_n_mask, get_split_dic
 
 class CityscapeDataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, image_list, mask_dic, image_dir, masks_dir, batch_size=32, dim=(256,256), n_channels=3,
-                 n_classes=8, shuffle=True,augmentation_func = None):
+    def __init__(self, image_list, mask_dic, image_dir, masks_dir, 
+                 batch_size=32, 
+                 dim=(256,256), 
+                 n_channels=3,
+                 n_classes=8, 
+                 shuffle=True,
+                 augmentation_func = None
+                 ):
         'Initialization'
         self.dim = dim
         self.batch_size = batch_size
@@ -75,7 +81,10 @@ class CityscapeDataGenerator(keras.utils.Sequence):
     
 
 
-def get_split_generator(params={},splits=['train','val'],data_root='Datas/reorganized_cityscape_data'):
+def get_split_generator(params={},
+                        splits=['train','val'],
+                        data_root='Datas/reorganized_cityscape_data'
+                        ):
     split_dic = get_split_dic(splits=splits,data_root=data_root)
     generators_dic = {}
     for split in splits:   

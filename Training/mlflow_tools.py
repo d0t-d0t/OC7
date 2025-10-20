@@ -7,6 +7,7 @@ from data_tools import visualize_multi_model_predictions
 from model_unet import Unet
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 from keras.metrics import MeanIoU
+import inspect
 
 def start_local_experiment( host='127.0.0.1',
                             port='8080',
@@ -63,6 +64,8 @@ def cityscape_experiment(model_func = Unet,
 
     optimizer=kwargs.get('optimizer','adam')
     loss = kwargs.get('loss','categorical_crossentropy')
+    if inspect.isclass(loss):
+        loss = loss()
     monitor=kwargs.get('monitor','val_loss')
     model.compile(optimizer=optimizer, 
                   loss=loss, metrics=metrics)
@@ -87,7 +90,7 @@ def cityscape_experiment(model_func = Unet,
                         mode='min',
                     #    mode='max', 
                     #    monitor='acc', 
-                        patience=1, 
+                        patience= kwargs.get('patience',2), 
                         verbose=1)
     callbacks.append(es)
     # vis = visualize()
@@ -116,19 +119,19 @@ def cityscape_experiment(model_func = Unet,
     
         mlflow.log_figure(prediction_test_fig, "prediction_test.png")
 
-        # signature = None
+        signature = None
         # Infer the model signature
         # if sign_model:
         #     signature = infer_signature(X_train, model.predict(X_train), model_params )
 
 
-        # model_info  = mlflow.keras.log_model(
-        #                             model=model,        
-        #                             name=model_name,
-        #                             signature=signature,
-        #                             input_example=None,
-        #                             registered_model_name=f"{model_name}",
-        #                             )
+        model_info  = mlflow.keras.log_model(
+                                    model=model,        
+                                    name=model_name,
+                                    signature=signature,
+                                    input_example=None,
+                                    registered_model_name=f"{model_name}",
+                                    )
 
         
         # hash_id = None
